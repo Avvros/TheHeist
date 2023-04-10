@@ -9,6 +9,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InteractReciever.h"
+#include "InteractReciever.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -39,7 +41,7 @@ ATheHeistCharacter::ATheHeistCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
+	CameraBoom->TargetArmLength = 200.0f; // The camera follows at this distance behind the character	
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
 	// Create a follow camera
@@ -84,8 +86,39 @@ void ATheHeistCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATheHeistCharacter::Look);
 
+		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ATheHeistCharacter::Interact);
+
 	}
 
+}
+
+void ATheHeistCharacter::Interact(const FInputActionValue& Value) 
+{
+	//if (GEngine)
+	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Some debug message!"));
+
+	FVector Location = FollowCamera->GetComponentLocation();
+	FVector ForwardVector = FollowCamera->GetForwardVector();
+
+	FVector TraceStartLocation = Location;
+	FVector TraceEndLocation = ForwardVector * (CameraBoom->TargetArmLength + 100) + Location;
+
+	FHitResult HitResult;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(this);
+	const FName TraceTag("MyTraceTag");
+
+	GetWorld()->DebugDrawTraceTag = TraceTag;
+	CollisionParams.TraceTag = TraceTag;
+	GetWorld()->LineTraceSingleByChannel(HitResult, TraceStartLocation, TraceEndLocation, ECollisionChannel::ECC_Visibility, CollisionParams);
+
+	AActor* hitActor = HitResult.GetActor();
+
+	if (!IsValid(hitActor)) return;
+
+	if (IInteractReciever* reciever = Cast<IInteractReciever>(HitResult.GetActor())) {
+		reciever->Interact();
+	}
 }
 
 void ATheHeistCharacter::Move(const FInputActionValue& Value)
