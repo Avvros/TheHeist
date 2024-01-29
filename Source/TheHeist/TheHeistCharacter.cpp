@@ -19,7 +19,7 @@
 ATheHeistCharacter::ATheHeistCharacter()
 {
 	// Set size for collision capsule
-	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 		
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
@@ -51,6 +51,11 @@ ATheHeistCharacter::ATheHeistCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	MainCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("MainCamera"));
+	MainCamera->SetupAttachment(GetMesh());
+	MainCamera->bUsePawnControlRotation = true;
+
 }
 
 void ATheHeistCharacter::BeginPlay()
@@ -67,6 +72,12 @@ void ATheHeistCharacter::BeginPlay()
 		}
 	}
 }
+
+//void ATheHeistCharacter::OnConstruction(const FTransform& transform)
+//{
+//	Super::OnConstruction(transform);
+//	//UE_LOG(LogTemp, Display, TEXT("The Heist Character: Debug var is %d"), DebugVariable0);
+//}
 
 //////////////////////////////////////////////////////////////////////////
 // Input
@@ -88,6 +99,8 @@ void ATheHeistCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 
 		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ATheHeistCharacter::Interact);
 
+		EnhancedInputComponent->BindAction(SwitchCameraAction, ETriggerEvent::Triggered, this, &ATheHeistCharacter::SwitchCamera);
+
 	}
 
 }
@@ -97,11 +110,11 @@ void ATheHeistCharacter::Interact(const FInputActionValue& Value)
 	//if (GEngine)
 	//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, TEXT("Some debug message!"));
 
-	FVector Location = FollowCamera->GetComponentLocation();
+	FVector Location = CameraBoom->GetComponentLocation();
 	FVector ForwardVector = FollowCamera->GetForwardVector();
 
 	FVector TraceStartLocation = Location;
-	FVector TraceEndLocation = ForwardVector * (CameraBoom->TargetArmLength + 100) + Location;
+	FVector TraceEndLocation = ForwardVector * 100 + Location;
 
 	FHitResult HitResult;
 	FCollisionQueryParams CollisionParams;
@@ -119,6 +132,13 @@ void ATheHeistCharacter::Interact(const FInputActionValue& Value)
 	if (IInteractReciever* reciever = Cast<IInteractReciever>(HitResult.GetActor())) {
 		reciever->Interact();
 	}
+}
+
+void ATheHeistCharacter::SwitchCamera(const FInputActionValue& Value)
+{
+	MainCamera->SetActive(!MainCamera->IsActive());
+	FollowCamera->SetActive(!MainCamera->IsActive());
+	bUseControllerRotationYaw = MainCamera->IsActive();
 }
 
 void ATheHeistCharacter::Move(const FInputActionValue& Value)
